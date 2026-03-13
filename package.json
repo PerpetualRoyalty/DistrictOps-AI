@@ -1,0 +1,17 @@
+{
+  "name": "districtops-ai",
+  "version": "1.0.0",
+  "description": "DistrictOps AI — Shadow Mode Platform for Local Government Special Districts",
+  "scripts": {
+    "build": "npx @tailwindcss/cli -i src/input.css -o dist/output.css --minify",
+    "dev": "npx @tailwindcss/cli -i src/input.css -o dist/output.css --watch",
+    "start": "npx serve . -l 3000"
+  },
+  "keywords": ["government", "ai", "triage", "special-districts", "shadow-mode"],
+  "author": "Good Samaritan Institute",
+  "license": "MIT",
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.2.1",
+    "tailwindcss": "^4.2.1"
+  }
+}
