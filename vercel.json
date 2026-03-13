@@ -1,0 +1,17 @@
+{
+  "buildCommand": "npm run build && mkdir -p public/dist && cp src/index.html src/login.html src/auth.js public/ && cp dist/output.css public/dist/ && sed -i 's|../dist/output.css|./dist/output.css|g' public/index.html && sed -i 's|../dist/output.css|./dist/output.css|g' public/login.html",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/login", "destination": "/login.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
+}
