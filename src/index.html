@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DistrictOps AI — Shadow Mode Platform</title>
+<link rel="stylesheet" href="dist/output.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'DM Sans', system-ui, sans-serif; }
+  .nav-link { position: relative; }
+  .nav-link.active::after { content:''; position:absolute; bottom:-2px; left:0; right:0; height:2px; background:#0967D2; border-radius:1px; }
+  .phase-badge { font-size:0.65rem; letter-spacing:0.05em; text-transform:uppercase; font-weight:600; }
+  .card { background:white; border:1px solid #e2e8f0; border-radius:0.5rem; }
+  .card-hover { transition: box-shadow 0.15s, transform 0.15s; }
+  .card-hover:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); transform:translateY(-1px); }
+  .metric-value { font-variant-numeric: tabular-nums; }
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  .split-panel { min-height: 420px; }
+  textarea:focus, input:focus, select:focus { outline:none; box-shadow:0 0 0 2px rgba(9,103,210,0.25); border-color:#0967D2; }
+  .gauge-ring { transition: stroke-dashoffset 0.8s ease; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-thumb { background:#bcccdc; border-radius:3px; }
+  @media(max-width:768px) { .split-grid { grid-template-columns:1fr !important; } }
+  .tab-btn { border-bottom:2px solid transparent; transition:all 0.15s; }
+  .tab-btn.active { border-bottom-color:#0967D2; color:#0967D2; }
+  .progress-step { position:relative; }
+  .progress-step::before { content:''; position:absolute; top:14px; left:28px; right:-100%; height:2px; background:#e2e8f0; z-index:0; }
+  .progress-step:last-child::before { display:none; }
+  .tooltip { visibility:hidden; opacity:0; transition:all 0.15s; }
+  .has-tooltip:hover .tooltip { visibility:visible; opacity:1; }
+</style>
+</head>
+<body class="bg-navy-50 text-navy-900 min-h-screen">
+
+<!-- Top Bar -->
+<header class="bg-white border-b border-navy-100 sticky top-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="flex items-center justify-between h-14">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center">
+          <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <span class="font-semibold text-navy-800 text-sm tracking-tight">DistrictOps <span class="text-accent">AI</span></span>
+        <span class="hidden sm:inline phase-badge bg-accent/10 text-accent px-2 py-0.5 rounded-full ml-1">Shadow Mode</span>
+      </div>
+      <nav class="hidden md:flex items-center gap-1 text-sm font-medium text-navy-500">
+        <button onclick="showSection('dashboard')" data-nav="dashboard" class="nav-link active px-3 py-4 hover:text-navy-800 transition-colors">Dashboard</button>
+        <button onclick="showSection('triage')" data-nav="triage" class="nav-link px-3 py-4 hover:text-navy-800 transition-colors">Shadow Triage</button>
+        <button onclick="showSection('roi')" data-nav="roi" class="nav-link px-3 py-4 hover:text-navy-800 transition-colors">ROI Calculator</button>
+        <button onclick="showSection('framework')" data-nav="framework" class="nav-link px-3 py-4 hover:text-navy-800 transition-colors">90-Day Framework</button>
+        <button onclick="showSection('rfp')" data-nav="rfp" class="nav-link px-3 py-4 hover:text-navy-800 transition-colors">RFP Generator</button>
+      </nav>
+      <div class="flex items-center gap-3">
+        <div class="hidden sm:flex items-center gap-2 text-xs text-navy-400 bg-navy-50 px-2.5 py-1.5 rounded-md">
+          <span class="w-1.5 h-1.5 rounded-full bg-success animate-pulse"></span>
+          Loxahatchee Groves WCD
+        </div>
+        <!-- Mobile Menu -->
+        <button onclick="toggleMobile()" class="md:hidden p-1.5 rounded-md hover:bg-navy-50">
+          <svg class="w-5 h-5 text-navy-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- Mobile Nav -->
+  <div id="mobileNav" class="md:hidden hidden border-t border-navy-100 bg-white">
+    <div class="px-4 py-2 flex flex-col text-sm font-medium text-navy-600">
+      <button onclick="showSection('dashboard');toggleMobile()" class="py-2.5 text-left hover:text-accent">Dashboard</button>
+      <button onclick="showSection('triage');toggleMobile()" class="py-2.5 text-left hover:text-accent">Shadow Triage</button>
+      <button onclick="showSection('roi');toggleMobile()" class="py-2.5 text-left hover:text-accent">ROI Calculator</button>
+      <button onclick="showSection('framework');toggleMobile()" class="py-2.5 text-left hover:text-accent">90-Day Framework</button>
+      <button onclick="showSection('rfp');toggleMobile()" class="py-2.5 text-left hover:text-accent">RFP Generator</button>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+<!-- ============ DASHBOARD ============ -->
+<section id="sec-dashboard" class="fade-in">
+  <!-- Greeting -->
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-navy-800">Good morning, Commissioner</h1>
+    <p class="text-sm text-navy-500 mt-0.5">Here's your district operations overview for the current pilot period.</p>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+    <div class="card p-4 card-hover">
+      <div class="text-xs font-medium text-navy-400 uppercase tracking-wider">Triage Time</div>
+      <div class="mt-2 flex items-end gap-1.5">
+        <span class="text-2xl font-semibold metric-value text-navy-800">22</span>
+        <span class="text-sm text-navy-500 mb-0.5">min avg</span>
+      </div>
+      <div class="mt-1.5 flex items-center text-xs text-success font-medium"><svg class="w-3.5 h-3.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>51% faster than manual (45m)</div>
+    </div>
+    <div class="card p-4 card-hover">
+      <div class="text-xs font-medium text-navy-400 uppercase tracking-wider">Projected Savings</div>
+      <div class="mt-2 flex items-end gap-1.5">
+        <span class="text-2xl font-semibold metric-value text-navy-800">$94.2K</span>
+        <span class="text-sm text-navy-500 mb-0.5">/yr</span>
+      </div>
+      <div class="mt-1.5 text-xs text-navy-400">Based on current pilot data</div>
+    </div>
+    <div class="card p-4 card-hover">
+      <div class="text-xs font-medium text-navy-400 uppercase tracking-wider">First-Trip Resolution</div>
+      <div class="mt-2 flex items-end gap-1.5">
+        <span class="text-2xl font-semibold metric-value text-navy-800">78%</span>
+      </div>
+      <div class="mt-1.5 flex items-center text-xs text-success font-medium"><svg class="w-3.5 h-3.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>+18% vs baseline (60%)</div>
+    </div>
+    <div class="card p-4 card-hover">
+      <div class="text-xs font-medium text-navy-400 uppercase tracking-wider">AI Accuracy</div>
+      <div class="mt-2 flex items-end gap-1.5">
+        <span class="text-2xl font-semibold metric-value text-navy-800">67%</span>
+      </div>
+      <div class="mt-1.5 text-xs text-navy-400">Target range: 60-70%</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="grid lg:grid-cols-3 gap-4 mb-6">
+    <div class="card p-5 lg:col-span-2">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-navy-700">Manual vs AI-Assisted Cost Comparison</h2>
+        <select id="chartPeriod" onchange="updateCostChart()" class="text-xs border border-navy-200 rounded px-2 py-1 text-navy-600 bg-white">
+          <option value="monthly">Monthly</option>
+          <option value="quarterly">Quarterly</option>
+        </select>
+      </div>
+      <div class="h-56"><canvas id="costChart"></canvas></div>
+    </div>
+    <div class="card p-5">
+      <h2 class="text-sm font-semibold text-navy-700 mb-4">Triage Feedback Distribution</h2>
+      <div class="h-56"><canvas id="feedbackChart"></canvas></div>
+      <div class="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+        <div><span class="inline-block w-2 h-2 rounded-full bg-success mr-1"></span>AI Better</div>
+        <div><span class="inline-block w-2 h-2 rounded-full bg-warning mr-1"></span>Same</div>
+        <div><span class="inline-block w-2 h-2 rounded-full bg-danger mr-1"></span>Human Better</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Activity -->
+  <div class="card">
+    <div class="px-5 py-4 border-b border-navy-100 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-navy-700">Recent Triage Events</h2>
+      <button onclick="showSection('triage')" class="text-xs text-accent hover:text-accent-dark font-medium">View all →</button>
+    </div>
+    <div class="divide-y divide-navy-50">
+      <div class="px-5 py-3 flex items-center gap-4 hover:bg-navy-50/50 transition-colors">
+        <div class="w-8 h-8 rounded-full bg-danger/10 flex items-center justify-center flex-shrink-0"><svg class="w-4 h-4 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-navy-800 truncate">"Water pooling near curb on Okeechobee Blvd" — <span class="text-danger font-medium">Missing: Gate code, callback #</span></p>
+          <p class="text-xs text-navy-400 mt-0.5">2 min ago · AI flagged 2 missing fields</p>
+        </div>
+        <span class="phase-badge bg-danger/10 text-danger px-2 py-0.5 rounded-full flex-shrink-0">P1 — Urgent</span>
+      </div>
+      <div class="px-5 py-3 flex items-center gap-4 hover:bg-navy-50/50 transition-colors">
+        <div class="w-8 h-8 rounded-full bg-warning/10 flex items-center justify-center flex-shrink-0"><svg class="w-4 h-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-navy-800 truncate">"Meter reading seems way too high this month" — Dispatched Crew B</p>
+          <p class="text-xs text-navy-400 mt-0.5">18 min ago · AI agreed with human triage</p>
+        </div>
+        <span class="phase-badge bg-warning/10 text-warning px-2 py-0.5 rounded-full flex-shrink-0">P2 — Standard</span>
+      </div>
+      <div class="px-5 py-3 flex items-center gap-4 hover:bg-navy-50/50 transition-colors">
+        <div class="w-8 h-8 rounded-full bg-success/10 flex items-center justify-center flex-shrink-0"><svg class="w-4 h-4 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M5 13l4 4L19 7"/></svg></div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-navy-800 truncate">"Drainage ditch needs clearing on B Road" — Resolved first trip</p>
+          <p class="text-xs text-navy-400 mt-0.5">1 hr ago · AI suggestion rated "Better" by dispatcher</p>
+        </div>
+        <span class="phase-badge bg-success/10 text-success px-2 py-0.5 rounded-full flex-shrink-0">Resolved</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SHADOW TRIAGE ============ -->
+<section id="sec-triage" class="hidden fade-in">
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-navy-800">Shadow Triage Engine</h1>
+    <p class="text-sm text-navy-500 mt-0.5">Compare your manual triage against the AI's "shadow" analysis. The AI panel stays hidden until you submit.</p>
+  </div>
+
+  <div class="grid split-grid gap-4" style="grid-template-columns:1fr 1fr 1fr;">
+    <!-- Left: Raw Input -->
+    <div class="card p-5 split-panel flex flex-col">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-6 h-6 rounded bg-navy-100 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-navy-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div>
+        <h3 class="text-sm font-semibold text-navy-700">Citizen Request (Raw)</h3>
+      </div>
+      <textarea id="rawInput" rows="6" class="w-full border border-navy-200 rounded-md p-3 text-sm text-navy-700 resize-none flex-1 placeholder:text-navy-300" placeholder="Paste the resident email, voicemail transcript, or walk-in note here...">Hi, I noticed water coming up near the road by my property on Southern Boulevard. It's been getting worse since last week and there's a soft spot in the ground. Not sure if it's a water main or drainage issue. My neighbor said she called about it too. Thanks, Maria</textarea>
+      <div class="mt-3 flex gap-2">
+        <button onclick="loadSample(1)" class="text-xs text-accent hover:underline">Sample: Leak Report</button>
+        <span class="text-navy-200">|</span>
+        <button onclick="loadSample(2)" class="text-xs text-accent hover:underline">Sample: Meter Issue</button>
+        <span class="text-navy-200">|</span>
+        <button onclick="loadSample(3)" class="text-xs text-accent hover:underline">Sample: Drainage</button>
+      </div>
+    </div>
+
+    <!-- Center: Human Input -->
+    <div class="card p-5 split-panel flex flex-col">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="w-6 h-6 rounded bg-accent/10 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>
+        <h3 class="text-sm font-semibold text-navy-700">Your Manual Triage</h3>
+      </div>
+      <div class="space-y-3 flex-1">
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Priority Level</label>
+          <select id="humanPriority" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700 bg-white">
+            <option value="">Select priority...</option>
+            <option value="P1">P1 — Emergency / Urgent</option>
+            <option value="P2">P2 — Standard / Same Day</option>
+            <option value="P3">P3 — Routine / Scheduled</option>
+            <option value="P4">P4 — Low / When Available</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Issue Category</label>
+          <select id="humanCategory" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700 bg-white">
+            <option value="">Select category...</option>
+            <option value="water_main">Water Main / Leak</option>
+            <option value="drainage">Drainage / Stormwater</option>
+            <option value="meter">Meter Reading / Billing</option>
+            <option value="road">Road / Infrastructure</option>
+            <option value="vegetation">Vegetation / Canal Maint.</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Assigned Crew</label>
+          <select id="humanCrew" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700 bg-white">
+            <option value="">Select crew...</option>
+            <option value="crew_a">Crew A — Water / Sewer</option>
+            <option value="crew_b">Crew B — Roads / Drainage</option>
+            <option value="crew_c">Crew C — General Maint.</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Estimated Triage Time (minutes)</label>
+          <input id="humanTime" type="number" value="35" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700" placeholder="e.g., 45">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Notes</label>
+          <textarea id="humanNotes" rows="2" class="w-full border border-navy-200 rounded-md p-3 text-sm text-navy-700 resize-none placeholder:text-navy-300" placeholder="Any additional notes..."></textarea>
+        </div>
+      </div>
+      <button onclick="revealAI()" class="mt-4 w-full bg-accent hover:bg-accent-dark text-white text-sm font-medium py-2.5 rounded-md transition-colors">Submit & Reveal AI Analysis →</button>
+    </div>
+
+    <!-- Right: AI Shadow (Hidden) -->
+    <div class="card split-panel flex flex-col overflow-hidden">
+      <div id="aiLocked" class="flex-1 flex flex-col items-center justify-center p-8 text-center bg-navy-50/50">
+        <div class="w-12 h-12 rounded-full bg-navy-100 flex items-center justify-center mb-3">
+          <svg class="w-6 h-6 text-navy-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+        </div>
+        <p class="text-sm font-medium text-navy-600">AI Analysis Locked</p>
+        <p class="text-xs text-navy-400 mt-1 max-w-[200px]">Complete your manual triage first, then click "Submit" to reveal the AI's shadow suggestion.</p>
+      </div>
+      <div id="aiRevealed" class="hidden flex-1 p-5 flex flex-col">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="w-6 h-6 rounded bg-success/10 flex items-center justify-center"><svg class="w-3.5 h-3.5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg></div>
+          <h3 class="text-sm font-semibold text-navy-700">AI Shadow Analysis</h3>
+          <span id="aiConfidence" class="ml-auto phase-badge bg-success/10 text-success px-2 py-0.5 rounded-full">Score: 82%</span>
+        </div>
+        <div class="space-y-3 flex-1 text-sm">
+          <div class="bg-navy-50 rounded-md p-3">
+            <div class="text-xs font-medium text-navy-400 mb-1">Extracted Address</div>
+            <div class="text-navy-800 font-medium" id="aiAddress">Southern Boulevard (near resident's property)</div>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-navy-50 rounded-md p-3">
+              <div class="text-xs font-medium text-navy-400 mb-1">Suggested Priority</div>
+              <div class="font-medium" id="aiPriority"><span class="text-danger">P1 — Urgent</span></div>
+            </div>
+            <div class="bg-navy-50 rounded-md p-3">
+              <div class="text-xs font-medium text-navy-400 mb-1">Issue Type</div>
+              <div class="font-medium text-navy-800" id="aiCategory">Water Main / Leak</div>
+            </div>
+          </div>
+          <div class="bg-navy-50 rounded-md p-3">
+            <div class="text-xs font-medium text-navy-400 mb-1">AI Triage Time</div>
+            <div class="text-navy-800 font-medium" id="aiTime">~18 seconds</div>
+          </div>
+          <div class="bg-danger/5 border border-danger/20 rounded-md p-3">
+            <div class="text-xs font-medium text-danger mb-1.5 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+              Missing Information Flags
+            </div>
+            <ul class="space-y-1 text-xs text-navy-700" id="aiFlags">
+              <li>• Exact street address number not provided</li>
+              <li>• No callback phone number</li>
+              <li>• No gate code or access instructions</li>
+              <li>• Resident's last name not provided</li>
+            </ul>
+          </div>
+          <div class="bg-navy-50 rounded-md p-3">
+            <div class="text-xs font-medium text-navy-400 mb-1">Suggested Clarification Questions</div>
+            <ol class="space-y-0.5 text-xs text-navy-700 list-decimal list-inside" id="aiQuestions">
+              <li>What is the exact street address number on Southern Blvd?</li>
+              <li>Is there a gate code needed for property access?</li>
+              <li>What is the best callback number for Maria?</li>
+            </ol>
+          </div>
+        </div>
+        <!-- Feedback -->
+        <div class="mt-4 pt-3 border-t border-navy-100">
+          <p class="text-xs font-medium text-navy-500 mb-2">How did the AI do?</p>
+          <div class="flex gap-2">
+            <button onclick="voteFeedback('better',this)" class="flex-1 py-2 text-xs font-medium border border-success/30 text-success rounded-md hover:bg-success/5 transition-colors">AI was Better</button>
+            <button onclick="voteFeedback('same',this)" class="flex-1 py-2 text-xs font-medium border border-warning/30 text-warning rounded-md hover:bg-warning/5 transition-colors">About the Same</button>
+            <button onclick="voteFeedback('worse',this)" class="flex-1 py-2 text-xs font-medium border border-danger/30 text-danger rounded-md hover:bg-danger/5 transition-colors">Human was Better</button>
+          </div>
+          <div id="feedbackMsg" class="hidden mt-2 text-xs text-success text-center font-medium">Feedback recorded. Thank you!</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ROI CALCULATOR ============ -->
+<section id="sec-roi" class="hidden fade-in">
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-navy-800">Operations ROI Calculator</h1>
+    <p class="text-sm text-navy-500 mt-0.5">Estimate the financial impact of AI-assisted triage on your district's budget.</p>
+  </div>
+
+  <div class="grid lg:grid-cols-5 gap-4">
+    <!-- Inputs -->
+    <div class="lg:col-span-2 card p-5">
+      <h3 class="text-sm font-semibold text-navy-700 mb-4">Your District's Numbers</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Monthly Service Requests</label>
+          <input id="roiVolume" type="number" value="120" oninput="calcROI()" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Avg Manual Triage Time (min/request)</label>
+          <input id="roiManualTime" type="number" value="45" oninput="calcROI()" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Avg AI-Assisted Triage Time (min/request)</label>
+          <input id="roiAITime" type="number" value="20" oninput="calcROI()" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700">
+        </div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Avg AI-Assisted Triage Time (min/request)</label>
+          <input id="roiAITime" type="number" value="20" oninput="calcROI()" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Staff Hourly Rate (fully loaded)</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-navy-400">$</span>
+            <input id="roiRate" type="number" value="42" oninput="calcROI()" class="w-full border border-navy-200 rounded-md pl-7 pr-3 py-2 text-sm text-navy-700">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Avg Cost Per Truck Roll</label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-navy-400">$</span>
+            <input id="roiTruck" type="number" value="185" oninput="calcROI()" class="w-full border border-navy-200 rounded-md pl-7 pr-3 py-2 text-sm text-navy-700">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">Repeat Visit Rate (% that need 2nd trip)</label>
+          <div class="relative">
+            <input id="roiRepeat" type="number" value="30" oninput="calcROI()" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-navy-400">%</span>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-navy-500 mb-1">AI Reduction in Repeat Visits</label>
+          <div class="relative">
+            <input id="roiRepeatReduction" type="number" value="50" oninput="calcROI()" class="w-full border border-navy-200 rounded-md px-3 py-2 text-sm text-navy-700">
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-navy-400">%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="lg:col-span-3 space-y-4">
+      <div class="grid sm:grid-cols-3 gap-3">
+        <div class="card p-4 text-center border-l-4 border-l-accent">
+          <div class="text-xs text-navy-400 font-medium uppercase tracking-wider">Time Saved / Year</div>
+          <div class="text-2xl font-semibold text-navy-800 mt-1 metric-value" id="roiTimeSaved">600 hrs</div>
+        </div>
+        <div class="card p-4 text-center border-l-4 border-l-success">
+          <div class="text-xs text-navy-400 font-medium uppercase tracking-wider">Projected Annual Savings</div>
+          <div class="text-2xl font-semibold text-success mt-1 metric-value" id="roiSavings">$94,200</div>
+        </div>
+        <div class="card p-4 text-center border-l-4 border-l-danger">
+          <div class="text-xs text-navy-400 font-medium uppercase tracking-wider">Wasted Spend (Current)</div>
+          <div class="text-2xl font-semibold text-danger mt-1 metric-value" id="roiWaste">$79,920</div>
+        </div>
+      </div>
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold text-navy-700 mb-3">Annual Cost Breakdown</h3>
+        <div class="h-64"><canvas id="roiChart"></canvas></div>
+      </div>
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold text-navy-700 mb-3">Savings Breakdown</h3>
+        <div class="space-y-3" id="roiBreakdown">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 90-DAY FRAMEWORK ============ -->
+<section id="sec-framework" class="hidden fade-in">
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-navy-800">90-Day Framework Tracker</h1>
+    <p class="text-sm text-navy-500 mt-0.5">Follow Commissioner Liles's proven Plan → Pilot → Prove methodology.</p>
+  </div>
+
+  <!-- Phase Progress Bar -->
+  <div class="card p-5 mb-4">
+    <div class="flex items-center justify-between mb-4">
+      <div class="text-sm font-semibold text-navy-700">Overall Progress</div>
+      <span class="text-xs text-navy-400">Day 47 of 90</span>
+    </div>
+    <div class="w-full bg-navy-100 rounded-full h-2.5 mb-4">
+      <div class="bg-accent h-2.5 rounded-full transition-all" style="width:52%"></div>
+    </div>
+    <div class="grid grid-cols-3 gap-4 text-center">
+      <div>
+        <div class="phase-badge bg-success/10 text-success px-2 py-1 rounded-full inline-block mb-1">Complete</div>
+        <div class="text-sm font-semibold text-navy-700">Plan</div>
+        <div class="text-xs text-navy-400">Days 1-30</div>
+      </div>
+      <div>
+        <div class="phase-badge bg-accent/10 text-accent px-2 py-1 rounded-full inline-block mb-1">In Progress</div>
+        <div class="text-sm font-semibold text-navy-700">Pilot</div>
+        <div class="text-xs text-navy-400">Days 31-60</div>
+      </div>
+      <div>
+        <div class="phase-badge bg-navy-100 text-navy-400 px-2 py-1 rounded-full inline-block mb-1">Upcoming</div>
+        <div class="text-sm font-semibold text-navy-700">Prove</div>
+        <div class="text-xs text-navy-400">Days 61-90</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase Cards -->
+  <div class="space-y-4">
+    <!-- PLAN -->
+    <div class="card overflow-hidden">
+      <button onclick="togglePhase('plan')" class="w-full px-5 py-4 flex items-center justify-between hover:bg-navy-50/50 transition-colors">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-success flex items-center justify-center"><svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" d="M5 13l4 4L19 7"/></svg></div>
+          <div class="text-left">
+            <h3 class="text-sm font-semibold text-navy-700">Phase 1: PLAN <span class="text-xs font-normal text-navy-400 ml-1">(Days 1-30)</span></h3>
+            <p class="text-xs text-navy-400">Baseline current operations and set up the pilot.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-medium text-success">8/8 tasks</span>
+          <svg id="plan-chevron" class="w-4 h-4 text-navy-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </button>
+      <div id="plan-body" class="hidden border-t border-navy-100 px-5 py-4">
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked disabled class="rounded"> Identify 3 key pain points in current triage process</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked disabled class="rounded"> Collect baseline KPIs (triage time, repeat visits, overtime)</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked disabled class="rounded"> Document current manual workflow (step by step)</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked disabled class="rounded"> Assign internal champion and stakeholders</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked disabled class="rounded"> Define success criteria for the pilot</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked disabled class="rounded"> Review data privacy requirements (PII handling)</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked disabled class="rounded"> Sign Project Charter</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked disabled class="rounded"> Upload historical service request data (last 6 months)</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- PILOT -->
+    <div class="card overflow-hidden border-l-4 border-l-accent">
+      <button onclick="togglePhase('pilot')" class="w-full px-5 py-4 flex items-center justify-between hover:bg-navy-50/50 transition-colors">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-accent flex items-center justify-center"><svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
+          <div class="text-left">
+            <h3 class="text-sm font-semibold text-navy-700">Phase 2: PILOT <span class="text-xs font-normal text-navy-400 ml-1">(Days 31-60)</span></h3>
+            <p class="text-xs text-navy-400">Run Shadow Mode and collect comparison data.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-medium text-accent">4/7 tasks</span>
+          <svg id="pilot-chevron" class="w-4 h-4 text-navy-400 transition-transform rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </button>
+      <div id="pilot-body" class="border-t border-navy-100 px-5 py-4">
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked class="rounded"> Activate Shadow Mode on live service requests</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked class="rounded"> Train dispatchers on comparison interface</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked class="rounded"> Process minimum 50 shadow triage events</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" checked class="rounded"> Collect feedback votes (Better / Same / Worse)</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" class="rounded"> Reach 100 triage comparisons for statistical validity</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" class="rounded"> Weekly check-in with dispatch team (gather qualitative feedback)</label>
+          <label class="flex items-center gap-3 text-sm text-navy-600"><input type="checkbox" class="rounded"> Mid-pilot progress report to GM</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- PROVE -->
+    <div class="card overflow-hidden">
+      <button onclick="togglePhase('prove')" class="w-full px-5 py-4 flex items-center justify-between hover:bg-navy-50/50 transition-colors">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-navy-200 flex items-center justify-center"><svg class="w-4 h-4 text-navy-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg></div>
+          <div class="text-left">
+            <h3 class="text-sm font-semibold text-navy-700">Phase 3: PROVE <span class="text-xs font-normal text-navy-400 ml-1">(Days 61-90)</span></h3>
+            <p class="text-xs text-navy-400">Analyze results and present to the Board.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-medium text-navy-400">0/6 tasks</span>
+          <svg id="prove-chevron" class="w-4 h-4 text-navy-400 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </button>
+      <div id="prove-body" class="hidden border-t border-navy-100 px-5 py-4">
+        <div class="space-y-2">
+          <label class="flex items-center gap-3 text-sm text-navy-500"><input type="checkbox" class="rounded"> Compile pilot results into ROI Dashboard</label>
+          <label class="flex items-center gap-3 text-sm text-navy-500"><input type="checkbox" class="rounded"> Calculate actual vs projected savings</label>
+          <label class="flex items-center gap-3 text-sm text-navy-500"><input type="checkbox" class="rounded"> Document AI accuracy rate and feedback trends</label>
+          <label class="flex items-center gap-3 text-sm text-navy-500"><input type="checkbox" class="rounded"> Generate Board Presentation (PDF export)</label>
+          <label class="flex items-center gap-3 text-sm text-navy-500"><input type="checkbox" class="rounded"> Present findings to Board of Commissioners</label>
+          <label class="flex items-center gap-3 text-sm text-navy-500"><input type="checkbox" class="rounded"> Decision: Go / No-Go on full deployment</label>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RFP GENERATOR ============ -->
+<section id="sec-rfp" class="hidden fade-in">
+  <div class="mb-6">
+    <h1 class="text-xl font-semibold text-navy-800">RFP Question Generator</h1>
+    <p class="text-sm text-navy-500 mt-0.5">Build a customized vendor evaluation checklist based on your district's priorities.</p>
+  </div>
+
+  <div class="grid lg:grid-cols-2 gap-4">
+    <div class="card p-5">
+      <h3 class="text-sm font-semibold text-navy-700 mb-4">Select Your Must-Have Requirements</h3>
+      <div class="space-y-3">
+        <label class="flex items-start gap-3 p-3 bg-navy-50/50 rounded-md hover:bg-navy-50 transition-colors cursor-pointer">
+          <input type="checkbox" checked class="mt-0.5 rounded rfp-check" data-cat="data">
+          <div>
+            <div class="text-sm font-medium text-navy-700">Data Ownership & Export</div>
+            <div class="text-xs text-navy-400">100% data ownership, fee-free export, no vendor lock-in</div>
+          </div>
+        </label>
+        <label class="flex items-start gap-3 p-3 bg-navy-50/50 rounded-md hover:bg-navy-50 transition-colors cursor-pointer">
+          <input type="checkbox" checked class="mt-0.5 rounded rfp-check" data-cat="security">
+          <div>
+            <div class="text-sm font-medium text-navy-700">Security & Compliance</div>
+            <div class="text-xs text-navy-400">SOC2 compliance, CJIS readiness, PII anonymization</div>
+          </div>
+        </label>
+        <label class="flex items-start gap-3 p-3 bg-navy-50/50 rounded-md hover:bg-navy-50 transition-colors cursor-pointer">
+          <input type="checkbox" checked class="mt-0.5 rounded rfp-check" data-cat="shadow">
+          <div>
+            <div class="text-sm font-medium text-navy-700">Shadow Mode Pilot</div>
+            <div class="text-xs text-navy-400">30-day shadow pilot before long-term commitment, no workflow changes</div>
+          </div>
+        </label>
+        <label class="flex items-start gap-3 p-3 bg-navy-50/50 rounded-md hover:bg-navy-50 transition-colors cursor-pointer">
+          <input type="checkbox" checked class="mt-0.5 rounded rfp-check" data-cat="accuracy">
+          <div>
+            <div class="text-sm font-medium text-navy-700">AI Accuracy & Transparency</div>
+            <div class="text-xs text-navy-400">Accuracy vs hallucination metrics, human-in-the-loop process</div>
+          </div>
+        </label>
+        <label class="flex items-start gap-3 p-3 bg-navy-50/50 rounded-md hover:bg-navy-50 transition-colors cursor-pointer">
+          <input type="checkbox" class="mt-0.5 rounded rfp-check" data-cat="integration">
+          <div>
+            <div class="text-sm font-medium text-navy-700">System Integration</div>
+            <div class="text-xs text-navy-400">Compatibility with Cityworks, Lucity, or existing work order systems</div>
+          </div>
+        </label>
+        <label class="flex items-start gap-3 p-3 bg-navy-50/50 rounded-md hover:bg-navy-50 transition-colors cursor-pointer">
+          <input type="checkbox" class="mt-0.5 rounded rfp-check" data-cat="onboarding">
+          <div>
+            <div class="text-sm font-medium text-navy-700">Implementation & Support</div>
+            <div class="text-xs text-navy-400">Dedicated onboarding specialist, implementation timeline</div>
+          </div>
+        </label>
+      </div>
+      <button onclick="generateRFP()" class="mt-4 w-full bg-accent hover:bg-accent-dark text-white text-sm font-medium py-2.5 rounded-md transition-colors">Generate RFP Questions →</button>
+    </div>
+
+    <div class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold text-navy-700">Generated Vendor Questions</h3>
+        <button onclick="copyRFP()" class="text-xs text-accent hover:underline font-medium flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+          Copy All
+        </button>
+      </div>
+      <div id="rfpOutput" class="space-y-3 text-sm">
+        <p class="text-navy-400 text-sm italic">Select your requirements and click "Generate" to see tailored vendor evaluation questions.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Footer -->
+<footer class="border-t border-navy-100 bg-white mt-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-navy-400">
+    <span>DistrictOps AI — Shadow Mode Platform · Built for Special Districts</span>
+    <span>Commissioner Doug Liles's 90-Day Framework · SOC2/CJIS Ready Architecture</span>
+  </div>
+</footer>
+
+<script>
+// ============ NAVIGATION ============
+function showSection(id) {
+  document.querySelectorAll('[id^="sec-"]').forEach(s => s.classList.add('hidden'));
+  document.getElementById('sec-' + id).classList.remove('hidden');
+  document.querySelectorAll('[data-nav]').forEach(n => n.classList.remove('active'));
+  const navBtn = document.querySelector(`[data-nav="${id}"]`);
+  if (navBtn) navBtn.classList.add('active');
+}
+function toggleMobile() {
+  document.getElementById('mobileNav').classList.toggle('hidden');
+}
+
+// ============ CHARTS INIT ============
+let costChart, feedbackChart, roiChart;
+
+function initCharts() {
+  const baseFont = { family: "'DM Sans', sans-serif", size: 11 };
+  Chart.defaults.font = baseFont;
+  Chart.defaults.color = '#627d98';
+
+  // Cost comparison chart
+  const costCtx = document.getElementById('costChart').getContext('2d');
+  costChart = new Chart(costCtx, {
+    type: 'bar',
+    data: {
+      labels: ['Jan','Feb','Mar','Apr','May','Jun'],
+      datasets: [
+        { label: 'Manual Cost', data: [8200,7800,8500,9100,8400,8700], backgroundColor: '#E12D39', borderRadius: 3 },
+        { label: 'AI-Assisted Cost', data: [4100,3900,3800,4200,3600,3500], backgroundColor: '#0967D2', borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position:'top', labels: { boxWidth:10, padding:16, font:{size:11} } } },
+      scales: {
+        y: { beginAtZero:true, ticks:{ callback: v => '$'+v.toLocaleString() }, grid:{ color:'#e2e8f0' } },
+        x: { grid:{ display:false } }
+      }
+    }
+  });
+
+  // Feedback doughnut
+  const fbCtx = document.getElementById('feedbackChart').getContext('2d');
+  feedbackChart = new Chart(fbCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['AI Better','About Same','Human Better'],
+      datasets: [{ data: [42,31,27], backgroundColor: ['#27AB83','#E8A317','#E12D39'], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: { legend: { display:false } }
+    }
+  });
+
+  // ROI chart
+  initROIChart();
+  calcROI();
+}
+
+function initROIChart() {
+  const ctx = document.getElementById('roiChart').getContext('2d');
+  roiChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Triage Labor','Truck Rolls','Repeat Visits','Overtime','Total'],
+      datasets: [
+        { label: 'Current Cost', data: [0,0,0,0,0], backgroundColor: '#E12D39', borderRadius: 3 },
+        { label: 'With AI', data: [0,0,0,0,0], backgroundColor: '#0967D2', borderRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position:'top', labels: { boxWidth:10, padding:16, font:{size:11} } } },
+      scales: {
+        y: { beginAtZero:true, ticks:{ callback: v => '$'+v.toLocaleString() }, grid:{ color:'#e2e8f0' } },
+        x: { grid:{ display:false } }
+      }
+    }
+  });
+}
+
+function updateCostChart() {
+  const period = document.getElementById('chartPeriod').value;
+  if (period === 'quarterly') {
+    costChart.data.labels = ['Q1','Q2','Q3','Q4'];
+    costChart.data.datasets[0].data = [24500,26200,25100,0];
+    costChart.data.datasets[1].data = [11800,11600,10900,0];
+  } else {
+    costChart.data.labels = ['Jan','Feb','Mar','Apr','May','Jun'];
+    costChart.data.datasets[0].data = [8200,7800,8500,9100,8400,8700];
+    costChart.data.datasets[1].data = [4100,3900,3800,4200,3600,3500];
+  }
+  costChart.update();
+}
+
+// ============ ROI CALCULATOR ============
+function calcROI() {
+  const vol = +document.getElementById('roiVolume').value || 0;
+  const manTime = +document.getElementById('roiManualTime').value || 0;
+  const aiTime = +document.getElementById('roiAITime').value || 0;
+  const rate = +document.getElementById('roiRate').value || 0;
+  const truck = +document.getElementById('roiTruck').value || 0;
+  const repeat = (+document.getElementById('roiRepeat').value || 0) / 100;
+  const repeatReduction = (+document.getElementById('roiRepeatReduction').value || 0) / 100;
+
+  const annualVol = vol * 12;
+  const timeSavedMin = (manTime - aiTime) * annualVol;
+  const timeSavedHrs = timeSavedMin / 60;
+  const laborSavings = timeSavedHrs * rate;
+
+  const repeatTrips = annualVol * repeat;
+  const repeatCostCurrent = repeatTrips * truck;
+  const repeatCostAI = repeatTrips * (1 - repeatReduction) * truck;
+  const repeatSavings = repeatCostCurrent - repeatCostAI;
+
+  const triageLaborCurrent = (manTime / 60) * rate * annualVol;
+  const triageLaborAI = (aiTime / 60) * rate * annualVol;
+  const truckCurrent = annualVol * truck;
+  const truckAI = annualVol * truck;
+  const overtimeCurrent = triageLaborCurrent * 0.15;
+  const overtimeAI = triageLaborAI * 0.05;
+
+  const totalCurrent = triageLaborCurrent + repeatCostCurrent + overtimeCurrent;
+  const totalAI = triageLaborAI + repeatCostAI + overtimeAI;
+  const totalSavings = laborSavings + repeatSavings + (overtimeCurrent - overtimeAI);
+
+  document.getElementById('roiTimeSaved').textContent = Math.round(timeSavedHrs).toLocaleString() + ' hrs';
+  document.getElementById('roiSavings').textContent = '$' + Math.round(totalSavings).toLocaleString();
+  document.getElementById('roiWaste').textContent = '$' + Math.round(repeatCostCurrent + overtimeCurrent).toLocaleString();
+
+  // Update chart
+  roiChart.data.datasets[0].data = [Math.round(triageLaborCurrent), Math.round(annualVol*truck*0.3), Math.round(repeatCostCurrent), Math.round(overtimeCurrent), Math.round(totalCurrent)];
+  roiChart.data.datasets[1].data = [Math.round(triageLaborAI), Math.round(annualVol*truck*0.3), Math.round(repeatCostAI), Math.round(overtimeAI), Math.round(totalAI)];
+  roiChart.update();
+
+  // Breakdown
+  document.getElementById('roiBreakdown').innerHTML = `
+    <div class="flex items-center justify-between py-2 border-b border-navy-50">
+      <span class="text-navy-600">Triage labor time savings</span>
+      <span class="font-medium text-success">$${Math.round(laborSavings).toLocaleString()}/yr</span>
+    </div>
+    <div class="flex items-center justify-between py-2 border-b border-navy-50">
+      <span class="text-navy-600">Reduced repeat truck rolls</span>
+      <span class="font-medium text-success">$${Math.round(repeatSavings).toLocaleString()}/yr</span>
+    </div>
+    <div class="flex items-center justify-between py-2 border-b border-navy-50">
+      <span class="text-navy-600">Overtime reduction</span>
+      <span class="font-medium text-success">$${Math.round(overtimeCurrent - overtimeAI).toLocaleString()}/yr</span>
+    </div>
+    <div class="flex items-center justify-between py-2 font-semibold">
+      <span class="text-navy-800">Total projected annual savings</span>
+      <span class="text-success text-lg">$${Math.round(totalSavings).toLocaleString()}/yr</span>
+    </div>
+  `;
+}
+
+// ============ SHADOW TRIAGE ============
+const samples = {
+  1: `Hi, I noticed water coming up near the road by my property on Southern Boulevard. It's been getting worse since last week and there's a soft spot in the ground. Not sure if it's a water main or drainage issue. My neighbor said she called about it too. Thanks, Maria`,
+  2: `My water bill was $340 this month which is way higher than normal. I checked for leaks and didn't see any. Can someone come read the meter again? I'm at 15801 Collecting Canal Rd. Thanks, John P.`,
+  3: `The drainage ditch behind my house on F Road hasn't been maintained in months. After the last rain it flooded into my yard. Multiple neighbors are having the same issue. We need the canal cleared ASAP. -Tom Rodriguez, 555-0147`
+};
+
+const aiResponses = {
+  1: {
+    address: 'Southern Boulevard (near resident\'s property — exact number missing)',
+    priority: '<span class="text-danger">P1 — Urgent</span>',
+    category: 'Water Main / Leak',
+    time: '~18 seconds',
+    confidence: '82%',
+    flags: ['Exact street address number not provided','No callback phone number','No gate code or access instructions','Resident\'s last name not provided'],
+    questions: ['What is the exact street address number on Southern Blvd?','Is there a gate code needed for property access?','What is the best callback number for Maria?']
+  },
+  2: {
+    address: '15801 Collecting Canal Rd',
+    priority: '<span class="text-warning">P2 — Standard</span>',
+    category: 'Meter Reading / Billing',
+    time: '~12 seconds',
+    confidence: '91%',
+    flags: ['No phone number for callback scheduling'],
+    questions: ['What is the best phone number to schedule a meter re-read?','What were the last 3 months\' bill amounts for comparison?']
+  },
+  3: {
+    address: 'F Road (behind resident\'s property)',
+    priority: '<span class="text-danger">P1 — Urgent</span>',
+    category: 'Drainage / Canal Maintenance',
+    time: '~15 seconds',
+    confidence: '88%',
+    flags: ['Exact house number not specified','No mention of cross-street for canal access point'],
+    questions: ['What is the exact address on F Road?','Which canal or drainage ditch is affected (canal number)?','How many properties are impacted?']
+  }
+};
+
+let currentSample = 1;
+
+function loadSample(n) {
+  currentSample = n;
+  document.getElementById('rawInput').value = samples[n];
+  // Reset AI panel
+  document.getElementById('aiLocked').classList.remove('hidden');
+  document.getElementById('aiRevealed').classList.add('hidden');
+  document.getElementById('feedbackMsg').classList.add('hidden');
+}
+
+function revealAI() {
+  const resp = aiResponses[currentSample];
+  document.getElementById('aiAddress').textContent = resp.address;
+  document.getElementById('aiPriority').innerHTML = resp.priority;
+  document.getElementById('aiCategory').textContent = resp.category;
+  document.getElementById('aiTime').textContent = resp.time;
+  document.getElementById('aiConfidence').textContent = 'Score: ' + resp.confidence;
+  document.getElementById('aiFlags').innerHTML = resp.flags.map(f => `<li>• ${f}</li>`).join('');
+  document.getElementById('aiQuestions').innerHTML = resp.questions.map((q,i) => `<li>${q}</li>`).join('');
+
+  document.getElementById('aiLocked').classList.add('hidden');
+  document.getElementById('aiRevealed').classList.remove('hidden');
+  document.getElementById('aiRevealed').classList.add('fade-in');
+}
+
+function voteFeedback(vote, btn) {
+  document.getElementById('feedbackMsg').classList.remove('hidden');
+  btn.parentElement.querySelectorAll('button').forEach(b => { b.style.opacity = '0.4'; b.disabled = true; });
+  btn.style.opacity = '1';
+}
+
+// ============ 90-DAY FRAMEWORK ============
+function togglePhase(phase) {
+  const body = document.getElementById(phase + '-body');
+  const chevron = document.getElementById(phase + '-chevron');
+  body.classList.toggle('hidden');
+  chevron.classList.toggle('rotate-180');
+}
+
+// ============ RFP GENERATOR ============
+const rfpQuestions = {
+  data: [
+    { q: 'Do we retain 100% ownership of our data?', note: 'If no, walk away.' },
+    { q: 'Can we export our data at any time without fees?', note: 'Required for vendor independence.' },
+    { q: 'In what formats can data be exported (CSV, JSON, API)?', note: '' },
+    { q: 'What happens to our data if we terminate the contract?', note: '' },
+  ],
+  security: [
+    { q: 'Is the system SOC2 compliant or on a SOC2 certification timeline?', note: '' },
+    { q: 'Is the system CJIS-ready for law enforcement-adjacent data?', note: '' },
+    { q: 'How is PII anonymized during AI processing?', note: '' },
+    { q: 'Where is data hosted, and do you offer US-only data residency?', note: '' },
+    { q: 'What encryption standards are used at rest and in transit?', note: '' },
+  ],
+  shadow: [
+    { q: 'Can we run a 30-day "Shadow Mode" pilot before signing a long-term contract?', note: 'Critical for de-risking.' },
+    { q: 'Does the pilot require changes to our current manual workflow?', note: 'It should not.' },
+    { q: 'What metrics do you track during the pilot to prove value?', note: '' },
+    { q: 'What is the cost of the pilot, and does it apply to the full contract?', note: '' },
+  ],
+  accuracy: [
+    { q: 'How do you measure "Accuracy Rate" vs "Hallucination Rate"?', note: '' },
+    { q: 'What is your current accuracy benchmark for similar district deployments?', note: '' },
+    { q: 'What is the process for human-in-the-loop feedback?', note: '' },
+    { q: 'How does the system handle edge cases or ambiguous requests?', note: '' },
+  ],
+  integration: [
+    { q: 'Does this integrate with our existing work order system (Cityworks, Lucity)?', note: '' },
+    { q: 'Is there an open API for custom integrations?', note: '' },
+    { q: 'Can the system receive data from our existing email/phone intake channels?', note: '' },
+  ],
+  onboarding: [
+    { q: 'What is the average implementation timeline for a district our size?', note: '' },
+    { q: 'Do you provide a dedicated onboarding specialist?', note: '' },
+    { q: 'What ongoing training and support is included in the contract?', note: '' },
+    { q: 'What is the escalation process for technical issues?', note: '' },
+  ]
+};
+
+function generateRFP() {
+  const checks = document.querySelectorAll('.rfp-check:checked');
+  const cats = Array.from(checks).map(c => c.dataset.cat);
+  if (cats.length === 0) {
+    document.getElementById('rfpOutput').innerHTML = '<p class="text-navy-400 italic">Please select at least one requirement category.</p>';
+    return;
+  }
+  let html = '';
+  let num = 1;
+  cats.forEach(cat => {
+    const catName = { data:'Data Ownership & Export', security:'Security & Compliance', shadow:'Shadow Mode Pilot', accuracy:'AI Accuracy & Transparency', integration:'System Integration', onboarding:'Implementation & Support' }[cat];
+    html += `<div class="mb-4"><div class="phase-badge bg-accent/10 text-accent px-2 py-0.5 rounded-full inline-block mb-2">${catName}</div>`;
+    rfpQuestions[cat].forEach(item => {
+      html += `<div class="flex gap-3 py-2 border-b border-navy-50">
+        <span class="text-navy-300 font-mono text-xs mt-0.5 w-6 flex-shrink-0">${String(num).padStart(2,'0')}</span>
+        <div>
+          <p class="text-navy-700">${item.q}</p>
+          ${item.note ? `<p class="text-xs text-danger mt-0.5 font-medium">${item.note}</p>` : ''}
+        </div>
+      </div>`;
+      num++;
+    });
+    html += '</div>';
+  });
+  document.getElementById('rfpOutput').innerHTML = html;
+}
+
+function copyRFP() {
+  const el = document.getElementById('rfpOutput');
+  const text = el.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target.closest('button');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" d="M5 13l4 4L19 7"/></svg> Copied!';
+    setTimeout(() => btn.innerHTML = orig, 1500);
+  });
+}
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded', initCharts);
+</script>
+</body>
+</html>
