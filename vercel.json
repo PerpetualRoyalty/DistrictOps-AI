@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && mkdir -p public/dist && cp src/index.html src/login.html src/auth.js public/ && cp dist/output.css public/dist/ && sed -i 's|../dist/output.css|./dist/output.css|g' public/index.html && sed -i 's|../dist/output.css|./dist/output.css|g' public/login.html",
+  "buildCommand": "npm run build && mkdir -p public/dist && cp src/*.html src/auth.js public/ && cp dist/output.css public/dist/ && sed -i 's|../dist/|./dist/|g' public/*.html",
   "outputDirectory": "public",
   "rewrites": [
     { "source": "/login", "destination": "/login.html" }
